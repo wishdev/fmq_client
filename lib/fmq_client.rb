@@ -171,11 +171,12 @@ begin
       def initialize(url)
         @sess = Patron::Session.new
         @sess.base_url = url
+        @headers = {}
       end
 
       # this returns one message from the queue as a string
       def poll(path = '')
-        handle_poll(@sess.get(path))
+        handle_poll(@sess.get(path, @headers))
       end
 
       alias get poll
@@ -196,6 +197,21 @@ begin
   rescue LoadError => e
     module FreeMessageQueue
       class PatronClient
+      end
+    end
+  end
+end
+
+begin
+  require 'rev'
+
+  module FreeMessageQueue
+    class ListenerClientQueue < PatronClientQueue
+      def initialize(url)
+        super
+        @server = Rev::TCPServer.new(0, nil)
+        @port = @server.instance_evel { @listen_socket }.addr[1]
+        @headers['Listener_Port'] = @port
       end
     end
   end
