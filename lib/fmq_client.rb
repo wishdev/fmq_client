@@ -28,6 +28,7 @@ module FreeMessageQueue
       :content_type, # the content type of the message
       :option, # options hash (META-DATA) for the message
       :valid #signifies if message was actually returned
+      :status
 
     # Create a message item. The payload is often just a string
     def initialize(payload, content_type = "text/plain", created_at = Time.new)
@@ -56,6 +57,7 @@ module FreeMessageQueue
       message = Message.new(res.body, res["CONTENT-TYPE"])
 
       message.valid = (res.status == 200)
+      message.status = res.status
       res.each_key do |option_name|
         if option_name.upcase.match(/MESSAGE_([a-zA-Z][a-zA-Z0-9_\-]*)/)
           message.option[$1] = res[option_name]
@@ -212,6 +214,15 @@ begin
         @server = Rev::TCPServer.new(0, nil)
         @port = @server.instance_evel { @listen_socket }.addr[1]
         @headers['Listener_Port'] = @port
+      end
+
+      def poll(path = '')
+        while true
+          message = super
+          break unless message.status == 202
+          Rev::Loop.default.run_once
+        end
+        message
       end
     end
   end
