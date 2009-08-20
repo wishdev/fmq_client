@@ -27,7 +27,7 @@ module FreeMessageQueue
       :created_at, # when came the message into the system
       :content_type, # the content type of the message
       :option, # options hash (META-DATA) for the message
-      :valid #signifies if message was actually returned
+      :valid, #signifies if message was actually returned
       :status
 
     # Create a message item. The payload is often just a string
@@ -211,16 +211,19 @@ begin
     class ListenerClientQueue < PatronClientQueue
       def initialize(url)
         super
-        @server = Rev::TCPServer.new(0, nil)
-        @port = @server.instance_evel { @listen_socket }.addr[1]
-        @headers['Listener_Port'] = @port
+        @server = Rev::TCPListener.new(0, nil)
+        @port = @server.instance_eval { @listen_socket }.addr[1]
+        @server.attach(Rev::Loop.default)
+        @headers['LISTENER_PORT'] = @port
       end
 
       def poll(path = '')
         while true
           message = super
           break unless message.status == 202
-          Rev::Loop.default.run_once
+          while true
+            break unless Rev::Loop.default.run_once == 0
+          end
         end
         message
       end
