@@ -211,7 +211,7 @@ begin
     class ListenerClientQueue < PatronClientQueue
       def initialize(url)
         super
-        @server = Rev::TCPListener.new(0, nil)
+        @server = Rev::TCPListener.new(nil, 0)
         @port = @server.instance_eval { @listen_socket }.addr[1]
         @server.attach(Rev::Loop.default)
         @headers['LISTENER_PORT'] = @port
