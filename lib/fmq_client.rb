@@ -1,6 +1,6 @@
 #
 # Copyright (c) 2008 Vincent Landgraf
-# Copyright (c) 2009 John W Higgins
+# Copyright (c) 2009-2010 John W Higgins
 #
 # This file is part of the Free Message Queue.
 #
@@ -59,7 +59,7 @@ module FreeMessageQueue
       message.valid = (res.status == 200)
       message.status = res.status
       res.each_key do |option_name|
-        if option_name.upcase.match(/MESSAGE_([a-zA-Z][a-zA-Z0-9_\-]*)/)
+        if option_name.upcase.match(/(?:MESSAGE|FMQ)_([a-zA-Z][a-zA-Z0-9_\-]*)/)
           message.option[$1] = res[option_name]
         end
       end
@@ -190,6 +190,22 @@ begin
 
       alias post put
 
+      def clear(path = '')
+        @sess.post(path, "_method=clear")
+      end
+
+      def peek(path = '', session_id = nil)
+        @headers['FMQ_QUEUE_SESSION'] = session_id
+        handle_poll(@sess.post(path, "_method=peek", @headers))
+      end
+
+      def peek_grab(path = '', session_id, message_id)
+        @headers['FMQ_QUEUE_SESSION'] = session_id
+        @headers['FMQ_GRAB_MESSAGE'] = message_id
+        resp = @sess.post(path, "_method=peek_grab", @headers)
+        resp && resp.status == 200
+      end
+
       protected
       # do a head request to get the state of the queue
       def head(path = '')
@@ -220,6 +236,18 @@ begin
       def poll(path = '')
         while true
           message = super
+          break unless message.status == 202
+          while true
+            break unless Rev::Loop.default.run_once == 0
+          end
+        end
+        message
+      end
+
+      def peek(path = '', session_id = nil)
+        while true
+          message = super
+          session_id = message.option["QUEUE_SESSION"]
           break unless message.status == 202
           while true
             break unless Rev::Loop.default.run_once == 0
